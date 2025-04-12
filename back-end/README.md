@@ -73,6 +73,16 @@
 
 ```
 
+### 인증 Process
+
+
+
+### 케어링 노트 API 호출 Process
+
+
+
+
+
 
 
 ## 환경 설정
@@ -90,7 +100,7 @@
 * Docker-compose(옵션)
   * container 환경에서 실행 시 필요
 
-### properties 설정
+### properties 사전 설정
 
 * application-secret.yaml
 
@@ -130,31 +140,50 @@
       api-key: <<naver-clova-api-keyz>>
   ```
 
-  
-
 ### local 환경 실행 방법
 
 * Bare-metal
+  ```sh
+  ## 사전 설치 및 설정 이후
+  ./gradlew clean build
+  ./gradlew bootRun
+  ```
+
+  
+
 * Docker-compose
+  ```sh
+  docker-compose up --build -d
+  ```
 
-
+  
 
 
 
 ## 배포 방법
 
-
+* gitAction
 
 
 
 ## 주요 서비스 
 
-### 인증
-
-
-
 ### 상담
 
-
+ 
 
 ### AI 요약
+
+
+
+## API 정보
+
+* https://caringnote.co.kr/api/swagger-ui/index.html#/
+
+
+
+## 코드 작성 룰
+
+### API 코드
+
+### 테스트 코드
