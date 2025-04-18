@@ -73,15 +73,22 @@
 
 ```
 
-### 인증 Process
+### 인증
 
+* 케어링 노트 시스템은 인증과 관련된 대부분의 기능을 Keycloak으로 위임하여 사용
+  * 자세한 내용은 infra repository 참고
 
+#### 가입
 
-### 케어링 노트 API 호출 Process
+![sign_in](./images/signin.png)
 
+#### 로그인
 
+![log_in](./images/login.png)
 
+#### API 호출
 
+![apicall](./images/apicall.png)
 
 
 
@@ -160,19 +167,158 @@
 
 
 
-## 배포 방법
+## CI/CD
 
-* gitAction
+#### branch
 
+* 케어링 노트는 현재 1개의 운영서버만 있는 상황으로
+  main branch로 부터 작업 브랜치 생성하여 작업한다.
+  * 작업 브랜치 명명 규칙
+    * feature/
+      * 신규 기능 개발
+    * refactor/
+      * 기능 개선
+    * fix/
+      * 결함 조치
+  * commit 메시지 규칙 => 이모티콘은 기호에 따라 붙임
+    * feat :
+      * 신규 기능
+    * fix : 
+      * 버그 수정
+    * refactor :
+      * 기능 개선
+    * chore :
+      * 쓸모없는 주석등 코드 정리
 
+#### CI
 
-## 주요 서비스 
+* 작업 브랜치에서 개발 완료된 이후, gitHub에서 PR 요청 진행하여
+  reviewer 중 1명이 승인하면 브랜치 담당자가 merge한다.
 
-### 상담
+  * PR 요청서 양식
 
- 
+    * PR 요청 시, label 설정하여 배포 시급성을 reviewer에게 인지시킴.
+
+    ```
+    🔍️ 이 PR을 통해 해결하려는 문제가 무엇인가요?
+    
+    ✨ 이 PR에서 핵심적으로 변경된 사항은 무엇일까요?
+    
+    🔖 핵심 변경 사항 외에 추가적으로 변경된 부분이 있나요?
+    
+    🙏 Reviewer 분들이 이런 부분을 신경써서 봐 주시면 좋겠어요
+    
+    🩺 이 PR에서 테스트 혹은 검증이 필요한 부분이 있을까요?
+    
+    테스트가 필요한 항목이나 테스트 코드가 추가되었다면 함께 적어주세요
+    
+    ```
+
+  * Reviewer check list
+
+    ```
+    📌 PR 진행 시 이러한 점들을 참고해 주세요
+    - Reviewer 분들은 코드 리뷰 시 좋은 코드의 방향을 제시하되, 코드 수정을 강제하지 말아 주세요.
+    - Reviewer 분들은 좋은 코드를 발견한 경우, 칭찬과 격려를 아끼지 말아 주세요.
+    - Review는 특수한 케이스가 아니면 Reviewer로 지정된 시점 기준으로 7일 이내에 진행해 주세요.
+    - Comment 작성 시 Prefix로 P1, P2, P3, P4, P5 를 적어 주시면 Assignee가 보다 명확하게 Comment에 대해 대응할 수 있어요
+        - P1 : 꼭 반영해 주세요 (Request Changes) - 이슈가 발생하거나 취약점이 발견되는 케이스 등
+        - P2 : 반영을 적극적으로 고려해 주시면 좋을 것 같아요 (Comment)
+        - P3 : 이런 방법도 있을 것 같아요~ 등의 사소한 의견입니다 (Chore)
+        - P4: 반영해도 좋고 넘어가도 좋습니다 (Approve)
+        - P5: 그냥 사소한 의견입니다 (Approve+Chore)
+    ```
+
+#### CD
+
+* main branch에 작업 branch merge 되면
+  gitAction 통해서 케어링 노트 서버에 반영됨.
+
+  * gitAction Process
+
+    * dockerfile 기반으로 image build
+
+    * 생성된 imgae DockerHub에 업로드
+
+      * 현재는 @**[jawsbaek](https://github.com/jawsbaek)**  의 docker hub repo로 업로드 됨
+
+    * 업로드 이후 케어링노트 k8s에서 아래 cli 실행되며 운영 서버에 반영됨.
+      ```sh
+      kubectl apply -f api.yaml
+      ```
+
+      
+
+## 주요 서비스  
 
 ### AI 요약
+
+* process
+  * multipart로 client 로 부터 audio file(webm) 받음
+  * ai_counsel_summarys테이블에 초기 상태 정보 저장(STT_PROGRESS) => 저장 후 client에게 응답
+  * audio file webm 에서 mp4로 변환
+  * Naver cloud clova speech api 호출 
+  * STT 호출 결과 및 상태 저장(STT_COMPLETE)
+  * STT 호출 결과에서 유효한 발화자 선정
+  * 선정된 발화자 기준으로 데이터 필터링
+  * 프롬프트 생성(STT 필터링 + 프롬프트 템플릿 + few shot learning) 
+  * OpenAI API 호출(GPT_PROGRESS)
+  * 응답 결과 저장(GPT_COMPLETE)
+* 관련 서비스
+  * AICounselSummaryService.convertSpeechToText
+  * AICounselSummaryService.AIanalyseText
+
+* 관련 테이블
+  * counsel_sessions
+    * 복약 상담 테이블
+  * ai_counsel_summarys
+    * ai 요약 테이블
+    * counsel_sessions 테이블과 1:1 관계
+  * prompt_templates
+    * 프롬프트 템플릿 관리 테이블
+  * Prompt_learnings
+    * few-shot learning을 위한 정보 관리 테이블
+* 히스토리
+  * 서비스 기획 시 STT와 TA 프로세스가 분리되어 있었으나
+    하나의 프로세스로 통합되면서 코드가 지저분해진 상황.
+
+
+
+## 케어링 노트 테이블 설계
+
+#### 테이블 설계 Rule
+
+* 테이블 설계는 JPA로 Entity 정의 하되
+  Local 환경에서는 auto-update 하지만
+  실제 운영환경에서는 none으로 설정되어 있어. 직접 DBMS 접속하여 테이블 생성해야함.
+
+* 현재 테이블 명명은 복수형(ex counselors)으로 되어 있으나
+  앞으로 신규 테이블 생성 시 명명은 단수형으로 한다.
+
+* 테이블의 PK는 application에서 ULID로 생성하여 저장(auto increment X)
+  * BaseEntity.onCreate 메소드 참고
+* 테이블 PK명명은  **id**로 함.
+  * PK로 다른 테이블 참조 시, 참조 테이블명_id로 명명한다.
+    * 참조 테이블명에서 s는 제외함.
+      * ex) ai_counel_summary 테이블에서 counsel_sessions id를 PK로 설정 시
+        **counsel_session_id** 명명함
+
+#### 주요 테이블
+
+* conuselors
+  * 약사, 늘픔가치 관련자 등 caringNote 회원 정보
+* counselSessions
+  * 상담관련 main 테이블로 상담 관련 대다수 테이블은 해당 테이블 PK를 FK로 설정함.
+* medications
+  * 외부 오픈 데이터를 활용하여 구성한 의약물 메타 테이블
+  * 케어링 노트 상담 시, 의약물 기록 시 자동완성을 위해 사용함.
+* aiCounselSummarys
+  * AI 요약 관련 테이블로 STT, TA 결과 저장하는 테이블
+
+#### ERD
+
+* 테이블이 많아 상세 내용은 .erd 파일 첨부함
+*  [caringnote.erd](./images/caringnote.erd) 
 
 
 
@@ -186,4 +332,8 @@
 
 ### API 코드
 
+* 관련 자세한 내용은 리포지토리 내 .cursor/rule 참고
+
 ### 테스트 코드
+
+* 관련 자세한 내용은 리포지토리 내 .cursor/rule 참고
