@@ -80,15 +80,15 @@
 
 #### 가입
 
-![sign_in](./images/signin.png)
+![sign_in](./assets/signin.png)
 
 #### 로그인
 
-![log_in](./images/login.png)
+![log_in](./assets/login.png)
 
 #### API 호출
 
-![apicall](./images/apicall.png)
+![apicall](./assets/apicall.png)
 
 
 
