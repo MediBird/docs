@@ -171,8 +171,7 @@
 
 #### branch
 
-* 케어링 노트는 현재 1개의 운영서버만 있는 상황으로
-  main branch로 부터 작업 브랜치 생성하여 작업한다.
+* main branch로 부터 작업 브랜치 생성하여 작업한다.
   * 작업 브랜치 명명 규칙
     * feature/
       * 신규 기능 개발
@@ -192,13 +191,15 @@
 
 #### CI
 
-* 작업 브랜치에서 개발 완료된 이후, gitHub에서 PR 요청 진행하여
-  reviewer 중 1명이 승인하면 브랜치 담당자가 merge한다.
+* 작업 브랜치에서 개발 후 gitHub에서 PR 요청 진행하여
+  reviewer 중 1명이 승인하면 브랜치 담당자가 staging branch로 merge한다.
 
+* staging branch로 merge 이후 특이 사항 없으면 배포 담당자 통해서 staging에서 main 브랜치로 merge
+  
   * PR 요청서 양식
-
+  
     * PR 요청 시, label 설정하여 배포 시급성을 reviewer에게 인지시킴.
-
+  
     ```
     🔍️ 이 PR을 통해 해결하려는 문제가 무엇인가요?
     
@@ -213,9 +214,9 @@
     테스트가 필요한 항목이나 테스트 코드가 추가되었다면 함께 적어주세요
     
     ```
-
+  
   * Reviewer check list
-
+  
     ```
     📌 PR 진행 시 이러한 점들을 참고해 주세요
     - Reviewer 분들은 코드 리뷰 시 좋은 코드의 방향을 제시하되, 코드 수정을 강제하지 말아 주세요.
@@ -231,7 +232,9 @@
 
 #### CD
 
-* main branch에 작업 branch merge 되면
+* 케어링 노트는 현재 staging, main 2개의 환경으로 운영됨.
+
+* staging branch에 작업 branch merge 되면
   gitAction 통해서 케어링 노트 서버에 반영됨.
 
   * gitAction Process
@@ -247,23 +250,37 @@
       kubectl apply -f api.yaml
       ```
 
-      
+* 배포 담당자 통해서 특정 주기로 staging branch를 main branch로 merge(release)함.
 
 ## 주요 서비스  
 
 ### AI 요약
 
 * process
-  * multipart로 client 로 부터 audio file(webm) 받음
-  * ai_counsel_summarys테이블에 초기 상태 정보 저장(STT_PROGRESS) => 저장 후 client에게 응답
-  * audio file webm 에서 mp4로 변환
-  * Naver cloud clova speech api 호출 
-  * STT 호출 결과 및 상태 저장(STT_COMPLETE)
-  * STT 호출 결과에서 유효한 발화자 선정
-  * 선정된 발화자 기준으로 데이터 필터링
-  * 프롬프트 생성(STT 필터링 + 프롬프트 템플릿 + few shot learning) 
-  * OpenAI API 호출(GPT_PROGRESS)
-  * 응답 결과 저장(GPT_COMPLETE)
+  ```mermaid
+  sequenceDiagram
+      participant Client
+      participant Server
+      participant NaverClova
+      participant OpenAI
+  
+  Client ->> Server: audio file(webm) multipart 업로드
+  Server ->> Server: ai_counsel_summarys 테이블에 초기 상태 저장(STT_PROGRESS)
+  Server -->> Client: 저장 완료 응답
+  
+  Server ->> Server: audio file(webm) → mp4 변환
+  Server ->> NaverClova: mp4 파일로 STT 호출
+  NaverClova -->> Server: STT 결과 수신
+  Server ->> Server: STT 결과 및 상태 저장(STT_COMPLETE)
+  
+  Server ->> Server: 유효한 발화자 선정
+  Server ->> Server: 선정된 발화자 기준 데이터 필터링
+  Server ->> Server: 프롬프트 생성 (STT 필터링 + 프롬프트 템플릿 + Few-shot learning)
+  
+  Server ->> OpenAI: 생성된 프롬프트로 GPT 호출 (GPT_PROGRESS)
+  OpenAI -->> Server: GPT 응답 수신
+  Server ->> Server: 응답 결과 저장 (GPT_COMPLETE)
+  ```
 * 관련 서비스
   * AICounselSummaryService.convertSpeechToText
   * AICounselSummaryService.AIanalyseText
